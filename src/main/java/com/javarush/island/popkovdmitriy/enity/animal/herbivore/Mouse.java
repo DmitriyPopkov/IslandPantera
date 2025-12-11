@@ -1,0 +1,71 @@
+package com.javarush.island.popkovdmitriy.enity.animal.herbivore;
+
+import com.javarush.island.popkovdmitriy.enity.animal.Animal;
+import com.javarush.island.popkovdmitriy.enity.plant.Grass;
+import com.javarush.island.popkovdmitriy.island.Cell;
+import com.javarush.island.popkovdmitriy.settings.Settings;
+
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadLocalRandom;
+
+public class Mouse extends Herbivore {
+
+    public Mouse() {
+        super.setWeight(Settings.weightMouse);
+        super.setMaxSpeed(Settings.maxSpeedMouse);
+        super.setMaxSatiety(Settings.maxSatietyMouse);
+        super.setActualSatiety(Settings.actualSatietyMouse);
+        super.setCountOnOneCell(Settings.countMouseOnOneCell);
+    }
+
+    @Override
+    public boolean eat(Cell cell) {
+        lock.lock();
+        try {
+            if (actualSatiety >= maxSatiety) {
+                actualSatiety = maxSatiety;
+                return true;
+            }
+            CopyOnWriteArrayList<Animal> listAnimal = cell.listAnimal;
+            List<Animal> listCaterpillar = listAnimal.stream().filter(animal -> animal instanceof Caterpillar).toList();
+            if (!listCaterpillar.isEmpty()) {
+                for (Animal cater : listCaterpillar) {
+                    int probability = Settings.chanceEatCaterpillarMouse;
+                    int randomNum = ThreadLocalRandom.current().nextInt(1, 900);
+                    if (probability >= randomNum) {
+                        Double weightFood = Settings.weightOfAllEdibleAnimals.get(cater.getClass().getSimpleName());
+                        if (weightFood > maxSatiety) {
+                            actualSatiety = maxSatiety;
+                        } else {
+                            actualSatiety += weightFood;
+                        }
+                        cell.listAnimal.remove(cater);
+                    }
+                }
+            }
+            if (actualSatiety >= maxSatiety) {
+                actualSatiety = maxSatiety;
+                return true;
+            }
+            CopyOnWriteArrayList<Grass> listGrass = cell.listGrass;
+            if (listGrass.isEmpty()) {
+                return false;
+            }
+            for (Grass grass : listGrass) {
+                int weightPlant = Grass.weight;
+                if (weightPlant > maxSatiety) {
+                    actualSatiety = maxSatiety;
+                    cell.listGrass.remove(grass);
+                } else {
+                    actualSatiety = actualSatiety + weightPlant + (maxSatiety * 0.3);
+                    cell.listGrass.remove(grass);
+                }
+                return false;
+            }
+        } finally {
+            lock.unlock();
+        }
+        return true;
+    }
+}
